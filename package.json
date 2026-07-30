@@ -1,0 +1,39 @@
+{
+  "name": "@zudar107/schloss-server-kit",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zudaR107/schloss-server-kit.git"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  },
+  "dependencies": {
+    "jose": "^6.2.3"
+  },
+  "devDependencies": {
+    "hono": "^4.12.32",
+    "oxlint": "^1.73.0",
+    "tsup": "^8.3.5",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
