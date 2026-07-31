@@ -3,9 +3,18 @@
 [![Test](https://github.com/zudaR107/schloss-server-kit/actions/workflows/test.yml/badge.svg)](https://github.com/zudaR107/schloss-server-kit/actions/workflows/test.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-Shared Hono backend kit for the [Schloss Platform](https://github.com/zudaR107/tor) —
-part of a self-hosted, open-source personal services ecosystem (schloss,
-schlüssel, kuvert, tafel, ...).
+Part of the [Hof platform](https://github.com/zudaR107/Hof) — a suite of
+self-hosted personal services:
+
+- [`schloss`](https://github.com/zudaR107/schloss) — home page / launcher
+- [`schlussel`](https://github.com/zudaR107/schlussel) — auth: accounts, login, tokens
+- [`kuvert`](https://github.com/zudaR107/kuvert) — envelope budgeting
+- [`tafel`](https://github.com/zudaR107/tafel) — task/project tracking
+- [`tor`](https://github.com/zudaR107/tor) — reverse-proxy gateway
+- [`schloss-ui`](https://github.com/zudaR107/schloss-ui) — shared frontend components
+- **`schloss-server-kit`** (this repo) — shared backend auth/CORS kit
+
+Shared Hono backend kit consumed by every backend service's API.
 
 Every backend service on the platform verifies JWTs issued by schlüssel
 against the same JWKS endpoint, and gates cross-origin requests with the
