@@ -1,2 +1,5 @@
-// Package scaffold - real exports land in the tracked implementation issue.
-export const SCHLOSS_SERVER_KIT_VERSION = '0.1.0'
+export { createAuthMiddleware } from './auth.js'
+export type { AuthUser, AuthMiddlewares, CreateAuthMiddlewareConfig } from './auth.js'
+
+export { createCorsMiddleware } from './cors.js'
+export type { CreateCorsMiddlewareConfig } from './cors.js'
