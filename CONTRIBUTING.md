@@ -1,7 +1,7 @@
 # Contributing to schloss-server-kit
 
 Thanks for considering a contribution. This package is consumed by every
-backend service on the Schloss Platform, so a breaking change here has a
+backend service on the Hof platform, so a breaking change here has a
 wide blast radius — please keep changes focused and in scope.
 
 ## Before opening a PR
