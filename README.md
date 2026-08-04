@@ -1,7 +1,7 @@
 # schloss-server-kit
 
 [![Test](https://github.com/zudaR107/schloss-server-kit/actions/workflows/test.yml/badge.svg)](https://github.com/zudaR107/schloss-server-kit/actions/workflows/test.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 Part of the [Hof platform](https://github.com/zudaR107/Hof) — a suite of
 self-hosted personal services:
@@ -10,6 +10,7 @@ self-hosted personal services:
 - [`schlussel`](https://github.com/zudaR107/schlussel) — auth: accounts, login, tokens
 - [`kuvert`](https://github.com/zudaR107/kuvert) — envelope budgeting
 - [`tafel`](https://github.com/zudaR107/tafel) — task/project tracking
+- [`zettel`](https://github.com/zudaR107/zettel) — markdown note-taking
 - [`tor`](https://github.com/zudaR107/tor) — reverse-proxy gateway
 - [`schloss-ui`](https://github.com/zudaR107/schloss-ui) — shared frontend components
 - **`schloss-server-kit`** (this repo) — shared backend auth/CORS kit
