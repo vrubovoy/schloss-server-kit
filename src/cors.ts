@@ -10,7 +10,7 @@ export function createCorsMiddleware(config: CreateCorsMiddlewareConfig): Middle
   return cors({
     origin: (origin) => (allowedOrigins.includes(origin) ? origin : null),
     allowHeaders: ['Content-Type', 'Authorization'],
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
     maxAge: 86400,
   })

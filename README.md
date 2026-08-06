@@ -45,8 +45,8 @@ import { createAuthMiddleware, createCorsMiddleware } from '@zudar107/schloss-se
 const { requireAuth, requireAdmin } = createAuthMiddleware({
   jwksUrl: process.env.SCHLUSSEL_JWKS_URL ?? 'http://schlussel:4000/.well-known/jwks.json',
   issuer: process.env.JWT_ISSUER ?? 'schlussel',
-  onUserSeen: async (claims) => {
-    // auto-provision (or touch) a local row keyed by claims.sub, however
+  onUserSeen: async (user) => {
+    // auto-provision (or touch) a local row keyed by user.id, however
     // your own service's users table is shaped
   },
 })
@@ -55,6 +55,16 @@ app.use('*', createCorsMiddleware({ allowedOrigins: ALLOWED_ORIGINS }))
 app.use('/some-protected-route/*', requireAuth)
 app.use('/admin-only-route/*', requireAuth, requireAdmin)
 ```
+
+After signature, issuer, and expiry verification, the auth middleware validates
+the token's application claims before calling `onUserSeen`. `sub`, `email`, and
+`name` must be nonempty strings; `role` must be `user` or `admin`. The optional
+regional claims are exposed on `AuthUser` as `weekStart` (`monday`, `sunday`, or
+`null`), `dateFormat` (`dmy`, `mdy`, `ymd`, or `null`), and `timezone` (a string
+or `null`). Missing regional claims are normalized to `null`.
+
+The CORS middleware allows `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`
+requests from configured origins.
 
 ## Development
 

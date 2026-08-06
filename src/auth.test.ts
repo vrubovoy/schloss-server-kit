@@ -39,10 +39,13 @@ describe('createAuthMiddleware', () => {
     key: CryptoKey,
     overrides: Partial<{
       iss: string
-      sub: string
-      email: string
-      name: string
-      role: string
+      sub: unknown
+      email: unknown
+      name: unknown
+      role: unknown
+      weekStart: unknown
+      dateFormat: unknown
+      timezone: unknown
       exp: string
       omitClaims: (keyof typeof baseUser)[]
     }> = {},
@@ -172,6 +175,104 @@ describe('createAuthMiddleware', () => {
       expect(res.status).toBe(401)
       expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
       expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it.each(['sub', 'email', 'name', 'role'] as const)(
+      'rejects a signed token missing the required %s identity claim',
+      async (claim) => {
+        const onUserSeen = vi.fn(async () => {})
+        const app = buildApp(onUserSeen)
+        const token = await signToken(privateKey, { omitClaims: [claim] })
+
+        const res = await app.request('/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        expect(res.status).toBe(401)
+        expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+        expect(onUserSeen).not.toHaveBeenCalled()
+      },
+    )
+
+    it.each([
+      ['sub', ''],
+      ['email', 42],
+      ['name', { first: 'Alice' }],
+      ['role', 'owner'],
+    ] as const)('rejects a signed token with a malformed %s identity claim', async (claim, value) => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, { [claim]: value })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['weekStart', 'friday'],
+      ['dateFormat', 'iso'],
+      ['timezone', 42],
+    ] as const)('rejects a signed token with a malformed optional %s claim', async (claim, value) => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, { [claim]: value })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it('passes valid optional regional claims to onUserSeen and downstream handlers', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, {
+        weekStart: 'sunday',
+        dateFormat: 'ymd',
+        timezone: 'Europe/Moscow',
+      })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const expectedUser: AuthUser = {
+        id: baseUser.sub,
+        email: baseUser.email,
+        name: baseUser.name,
+        role: baseUser.role,
+        weekStart: 'sunday',
+        dateFormat: 'ymd',
+        timezone: 'Europe/Moscow',
+      }
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual(expectedUser)
+      expect(onUserSeen).toHaveBeenCalledWith(expectedUser)
+    })
+
+    it('lets an onUserSeen provisioning error reach the application error handler', async () => {
+      const onUserSeen = vi.fn(async () => {
+        throw new Error('database unavailable')
+      })
+      const app = buildApp(onUserSeen)
+      app.onError((error, c) => c.json({ error: error.message }, 503))
+      const token = await signToken(privateKey)
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(503)
+      expect(await res.json()).toEqual({ error: 'database unavailable' })
+      expect(onUserSeen).toHaveBeenCalledTimes(1)
     })
 
     it('on a valid token: calls onUserSeen once, sets c.get("user"), and reaches downstream', async () => {
