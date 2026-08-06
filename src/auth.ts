@@ -7,6 +7,16 @@ export interface AuthUser {
   email: string
   name: string
   role: 'admin' | 'user'
+  // Schlüssel-owned profile prefs, embedded directly in the token claim
+  // (see schlussel's own JwtPayload) so a consuming service can actually
+  // render with them - a real IANA week-start/date-format/timezone
+  // choice, not a value only schlussel itself ever reads. Null when the
+  // user has never set that preference; a consuming service's own
+  // rendering code decides its own display default in that case, exactly
+  // like schlussel's account page does.
+  weekStart: 'monday' | 'sunday' | null
+  dateFormat: 'dmy' | 'mdy' | 'ymd' | null
+  timezone: string | null
 }
 
 declare module 'hono' {
@@ -48,6 +58,9 @@ export function createAuthMiddleware(config: CreateAuthMiddlewareConfig): AuthMi
         email: payload['email'] as string,
         name: payload['name'] as string,
         role: payload['role'] as 'admin' | 'user',
+        weekStart: (payload['weekStart'] as 'monday' | 'sunday' | null | undefined) ?? null,
+        dateFormat: (payload['dateFormat'] as 'dmy' | 'mdy' | 'ymd' | null | undefined) ?? null,
+        timezone: (payload['timezone'] as string | null | undefined) ?? null,
       }
 
       await onUserSeen(user)
