@@ -193,6 +193,9 @@ describe('createAuthMiddleware', () => {
         email: 'bob@example.com',
         name: 'Bob Example',
         role: 'user',
+        weekStart: null,
+        dateFormat: null,
+        timezone: null,
       }
 
       expect(res.status).toBe(200)
