@@ -1,6 +1,7 @@
 import { createMiddleware } from 'hono/factory'
 import type { MiddlewareHandler } from 'hono'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
+import type { JWTPayload } from 'jose'
 
 export interface AuthUser {
   id: string
@@ -40,6 +41,36 @@ export interface AuthMiddlewares {
   requireAdmin: MiddlewareHandler
 }
 
+function userFromPayload(payload: JWTPayload): AuthUser {
+  const { sub, email, name, role, weekStart, dateFormat, timezone } = payload
+  const hasRequiredClaims =
+    typeof sub === 'string' &&
+    sub.length > 0 &&
+    typeof email === 'string' &&
+    email.length > 0 &&
+    typeof name === 'string' &&
+    name.length > 0 &&
+    (role === 'admin' || role === 'user')
+  const hasValidPreferences =
+    (weekStart === undefined || weekStart === null || weekStart === 'monday' || weekStart === 'sunday') &&
+    (dateFormat === undefined || dateFormat === null || dateFormat === 'dmy' || dateFormat === 'mdy' || dateFormat === 'ymd') &&
+    (timezone === undefined || timezone === null || typeof timezone === 'string')
+
+  if (!hasRequiredClaims || !hasValidPreferences) {
+    throw new Error('Invalid token claims')
+  }
+
+  return {
+    id: sub,
+    email,
+    name,
+    role,
+    weekStart: weekStart ?? null,
+    dateFormat: dateFormat ?? null,
+    timezone: timezone ?? null,
+  }
+}
+
 export function createAuthMiddleware(config: CreateAuthMiddlewareConfig): AuthMiddlewares {
   const { jwksUrl, issuer, onUserSeen } = config
   const jwks = createRemoteJWKSet(new URL(jwksUrl))
@@ -50,26 +81,18 @@ export function createAuthMiddleware(config: CreateAuthMiddlewareConfig): AuthMi
       return c.json({ error: 'Unauthorized' }, 401)
     }
 
+    let user: AuthUser
     try {
       const { payload } = await jwtVerify(authHeader.slice(7), jwks, { issuer })
-
-      const user: AuthUser = {
-        id: payload.sub as string,
-        email: payload['email'] as string,
-        name: payload['name'] as string,
-        role: payload['role'] as 'admin' | 'user',
-        weekStart: (payload['weekStart'] as 'monday' | 'sunday' | null | undefined) ?? null,
-        dateFormat: (payload['dateFormat'] as 'dmy' | 'mdy' | 'ymd' | null | undefined) ?? null,
-        timezone: (payload['timezone'] as string | null | undefined) ?? null,
-      }
-
-      await onUserSeen(user)
-
-      c.set('user', user)
-      await next()
+      user = userFromPayload(payload)
     } catch {
       return c.json({ error: 'Invalid or expired token' }, 401)
     }
+
+    await onUserSeen(user)
+
+    c.set('user', user)
+    await next()
   })
 
   // Composed after requireAuth (which already verified the JWT and set

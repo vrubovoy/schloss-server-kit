@@ -10,6 +10,7 @@ function buildApp() {
   app.use('*', createCorsMiddleware({ allowedOrigins: [ALLOWED_ORIGIN] }))
   app.get('/ping', (c) => c.json({ ok: true }))
   app.post('/ping', (c) => c.json({ ok: true }))
+  app.patch('/ping', (c) => c.json({ ok: true }))
   return app
 }
 
@@ -58,6 +59,22 @@ describe('createCorsMiddleware', () => {
       expect(allowHeaders.toLowerCase()).toContain(header.toLowerCase())
     }
     expect(res.headers.get('Access-Control-Max-Age')).toBe('86400')
+  })
+
+  it('allows PATCH in a preflight request from an allowed origin', async () => {
+    const app = buildApp()
+
+    const res = await app.request('/ping', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: ALLOWED_ORIGIN,
+        'Access-Control-Request-Method': 'PATCH',
+      },
+    })
+
+    expect(res.status).toBe(204)
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe(ALLOWED_ORIGIN)
+    expect(res.headers.get('Access-Control-Allow-Methods')).toContain('PATCH')
   })
 
   it('lets a request with no Origin header reach the downstream handler normally', async () => {
