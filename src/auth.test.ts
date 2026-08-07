@@ -231,6 +231,34 @@ describe('createAuthMiddleware', () => {
       expect(onUserSeen).not.toHaveBeenCalled()
     })
 
+    it('rejects a signed token with a timezone that is not a valid IANA identifier', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, { timezone: 'Mars/Olympus_Mons' })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it('allows an explicitly null timezone claim', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, { timezone: null })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ timezone: null })
+      expect(onUserSeen).toHaveBeenCalledWith(expect.objectContaining({ timezone: null }))
+    })
+
     it('passes valid optional regional claims to onUserSeen and downstream handlers', async () => {
       const onUserSeen = vi.fn(async () => {})
       const app = buildApp(onUserSeen)

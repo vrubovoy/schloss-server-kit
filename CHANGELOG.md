@@ -10,6 +10,8 @@ fit best; add a new section if none fits.
   provisioning users. Invalid claims now receive the existing invalid-token
   response, while provisioning failures propagate to the application error
   handler.
+- Reject timezone claims that are strings but not valid IANA timezone
+  identifiers, while continuing to accept valid identifiers and `null`.
 - Initial release: `createAuthMiddleware({ jwksUrl, issuer, onUserSeen })`
   (JWKS-based JWT verification, `requireAuth`/`requireAdmin`) and
   `createCorsMiddleware({ allowedOrigins })`, extracted from kuvert's
