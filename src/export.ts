@@ -124,7 +124,7 @@ export function createExportAuthVerifier(config: CreateExportAuthVerifierConfig)
       requiredClaims: ['exp'],
     })
 
-    if (payload['token_use'] === 'access') {
+    if (payload['token_use'] === undefined || payload['token_use'] === 'access') {
       const user = userFromAccessPayload(payload)
       return { sub: user.id, kind: 'access' }
     }

@@ -49,6 +49,7 @@ describe('createAuthMiddleware', () => {
       dateFormat: unknown
       timezone: unknown
       token_use: unknown
+      jti: unknown
       algorithm: 'RS256' | 'ES256'
       exp: string
       omitExpiration: boolean
@@ -240,13 +241,43 @@ describe('createAuthMiddleware', () => {
       },
     )
 
-    it.each([
-      ['a missing token-use discriminator', { omitClaims: ['token_use'] }],
-      ['a non-access token-use discriminator', { token_use: 'export' }],
-    ] as const)('rejects %s', async (_description, overrides) => {
+    it('rejects an explicit non-access token-use discriminator', async () => {
       const onUserSeen = vi.fn(async () => {})
       const app = buildApp(onUserSeen)
-      const token = await signToken(privateKey, overrides)
+      const token = await signToken(privateKey, { token_use: 'export' })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it('rejects a signed, unexpired claimless token without a token-use discriminator', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, {
+        omitClaims: ['sub', 'email', 'name', 'role', 'token_use'],
+      })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it('rejects an undiscriminated refresh-shaped token without access identity claims', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, {
+        jti: 'refresh-123',
+        omitClaims: ['email', 'name', 'role', 'token_use'],
+      })
 
       const res = await app.request('/me', {
         headers: { Authorization: `Bearer ${token}` },
@@ -349,6 +380,30 @@ describe('createAuthMiddleware', () => {
       expect(onUserSeen).toHaveBeenCalledWith(expectedUser)
     })
 
+    it('accepts a signed, unexpired legacy access-shaped token without token_use', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, { omitClaims: ['token_use'] })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const expectedUser: AuthUser = {
+        id: baseUser.sub,
+        email: baseUser.email,
+        name: baseUser.name,
+        role: baseUser.role,
+        weekStart: null,
+        dateFormat: null,
+        timezone: null,
+      }
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual(expectedUser)
+      expect(onUserSeen).toHaveBeenCalledOnce()
+      expect(onUserSeen).toHaveBeenCalledWith(expectedUser)
+    })
+
     it('lets an onUserSeen provisioning error reach the application error handler', async () => {
       const onUserSeen = vi.fn(async () => {
         throw new Error('database unavailable')
@@ -366,7 +421,7 @@ describe('createAuthMiddleware', () => {
       expect(onUserSeen).toHaveBeenCalledTimes(1)
     })
 
-    it('on a valid token: calls onUserSeen once, sets c.get("user"), and reaches downstream', async () => {
+    it('prefers an explicit access token use and reaches downstream with the user', async () => {
       const onUserSeen = vi.fn(async () => {})
       const app = buildApp(onUserSeen)
 

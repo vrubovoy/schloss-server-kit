@@ -58,7 +58,8 @@ app.use('/admin-only-route/*', requireAuth, requireAdmin)
 
 After RS256 signature, issuer, and expiry verification, the auth middleware
 validates the token's application claims before calling `onUserSeen`. `token_use`
-must be exactly `access`; `sub`, `email`, and `name` must be nonempty strings; and
+must be `access` when present; signed legacy access tokens without that claim
+remain valid during the rollout. `sub`, `email`, and `name` must be nonempty strings; and
 `role` must be `user` or `admin`. The optional regional claims are exposed on
 `AuthUser` as `weekStart` (`monday`, `sunday`, or `null`), `dateFormat` (`dmy`,
 `mdy`, `ymd`, or `null`), and `timezone` (a string containing a valid IANA
@@ -103,9 +104,9 @@ app.get('/exports/me', requireExportAuth, async (c) => {
 })
 ```
 
-`createExportAuthMiddleware` accepts either a normal access token with
-`token_use: 'access'` and all claims required by `createAuthMiddleware`, or an
-export delegation. It stores only a safe `ExportPrincipal`: access tokens produce
+`createExportAuthMiddleware` accepts either a normal access token with all
+claims required by `createAuthMiddleware` (including legacy tokens without
+`token_use`), or an export delegation. It stores only a safe `ExportPrincipal`: access tokens produce
 `{ sub, kind: 'access' }`; delegations produce
 `{ sub, kind: 'delegation', jobId }`. `createExportAuthVerifier` exposes the same
 mixed validation without Hono.
@@ -121,11 +122,11 @@ provide export storage or job orchestration.
 
 #### Rollout
 
-Requiring `token_use: 'access'` needs a coordinated issuer rollout. Deploy the
-Schlussel change that adds the claim first, wait at least the existing 15-minute
-access-token lifetime for previously issued tokens without the claim to expire,
-and only then deploy services using this version. There is no indefinite
-missing-claim compatibility path.
+Deploy the Schlussel change that emits `token_use: 'access'` before or together
+with consumers. Previously issued access tokens remain accepted only when they
+still have the complete access-token claim shape and a valid signature and
+expiration. Tokens explicitly marked for refresh or export remain invalid on
+ordinary routes.
 
 The platform's current fixed signing `kid` makes coordinated JWKS key rotation
 existing deployment debt. This feature continues to use the shared remote JWKS

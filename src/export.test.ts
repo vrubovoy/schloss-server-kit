@@ -82,7 +82,7 @@ describe('export delegation', () => {
     omitAudience?: boolean
     expiration?: string
     omitExpiration?: boolean
-    omitClaims?: Array<'sub' | 'job_id' | 'jti' | 'token_use' | 'scope'>
+    omitClaims?: Array<'sub' | 'job_id' | 'jti' | 'token_use' | 'scope' | 'email' | 'name' | 'role'>
     claims?: Record<string, unknown>
   }
 
@@ -122,15 +122,21 @@ describe('export delegation', () => {
     return token.sign(algorithm === 'RS256' ? rsaPrivateKey : ecPrivateKey)
   }
 
-  async function signAccessToken(claims: Record<string, unknown> = {}): Promise<string> {
-    return new SignJWT({
+  async function signAccessToken(
+    claims: Record<string, unknown> = {},
+    omitClaims: readonly string[] = [],
+  ): Promise<string> {
+    const payload: Record<string, unknown> = {
       sub: 'user-123',
       email: 'alice@example.com',
       name: 'Alice Example',
       role: 'user',
       token_use: 'access',
       ...claims,
-    })
+    }
+    for (const claim of omitClaims) delete payload[claim]
+
+    return new SignJWT(payload)
       .setProtectedHeader({ alg: 'RS256', kid: 'rsa-1' })
       .setIssuedAt()
       .setIssuer(ISSUER)
@@ -296,8 +302,17 @@ describe('export delegation', () => {
       return app
     }
 
-    it('returns a minimal access principal for a valid normal access token', async () => {
+    it('prefers an explicit access token use and returns a minimal access principal', async () => {
       const token = await signAccessToken()
+
+      await expect(verifier()(token)).resolves.toEqual({
+        sub: 'user-123',
+        kind: 'access',
+      })
+    })
+
+    it('returns a minimal access principal for a signed, unexpired legacy access-shaped token without token_use', async () => {
+      const token = await signAccessToken({}, ['token_use'])
 
       await expect(verifier()(token)).resolves.toEqual({
         sub: 'user-123',
@@ -318,6 +333,19 @@ describe('export delegation', () => {
     it.each([
       ['an access token with malformed access claims', () => signAccessToken({ role: 'owner' })],
       ['an access token with malformed preferences', () => signAccessToken({ timezone: 42 })],
+      ['an access-shaped token explicitly marked for export', () => signAccessToken({ token_use: 'export' })],
+      [
+        'a signed, unexpired claimless token without a token-use discriminator',
+        () => signAccessToken({}, ['sub', 'email', 'name', 'role', 'token_use']),
+      ],
+      [
+        'an undiscriminated refresh-shaped token without access identity claims',
+        () => signAccessToken({ jti: 'refresh-123' }, ['email', 'name', 'role', 'token_use']),
+      ],
+      [
+        'an undiscriminated delegation-shaped token without access identity claims',
+        () => signDelegation({ omitClaims: ['token_use', 'email', 'name', 'role'] }),
+      ],
       ['a delegation for another service', () => signDelegation({ audience: 'hof-service:kuvert' })],
       ['a delegation without the exact scope', () => signDelegation({ claims: { scope: 'data:export:all' } })],
     ] as const)('rejects %s', async (_description, createToken) => {
@@ -328,6 +356,11 @@ describe('export delegation', () => {
 
     it.each([
       ['normal access', () => signAccessToken(), { sub: 'user-123', kind: 'access' }],
+      [
+        'legacy access without token_use',
+        () => signAccessToken({}, ['token_use']),
+        { sub: 'user-123', kind: 'access' },
+      ],
       [
         'service delegation',
         () => signDelegation(),
