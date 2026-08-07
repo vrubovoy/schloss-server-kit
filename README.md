@@ -56,17 +56,80 @@ app.use('/some-protected-route/*', requireAuth)
 app.use('/admin-only-route/*', requireAuth, requireAdmin)
 ```
 
-After signature, issuer, and expiry verification, the auth middleware validates
-the token's application claims before calling `onUserSeen`. `sub`, `email`, and
-`name` must be nonempty strings; `role` must be `user` or `admin`. The optional
-regional claims are exposed on `AuthUser` as `weekStart` (`monday`, `sunday`, or
-`null`), `dateFormat` (`dmy`, `mdy`, `ymd`, or `null`), and `timezone` (a string
-containing a valid IANA timezone identifier, or `null`). Missing regional claims
-are normalized to `null`; malformed timezone identifiers reject the token before
-`onUserSeen` runs.
+After RS256 signature, issuer, and expiry verification, the auth middleware
+validates the token's application claims before calling `onUserSeen`. `token_use`
+must be exactly `access`; `sub`, `email`, and `name` must be nonempty strings; and
+`role` must be `user` or `admin`. The optional regional claims are exposed on
+`AuthUser` as `weekStart` (`monday`, `sunday`, or `null`), `dateFormat` (`dmy`,
+`mdy`, `ymd`, or `null`), and `timezone` (a string containing a valid IANA
+timezone identifier, or `null`). Missing regional claims are normalized to
+`null`; malformed timezone identifiers reject the token before `onUserSeen`
+runs.
 
 The CORS middleware allows `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`
 requests from configured origins.
+
+### Data export contracts
+
+`exportEnvelopeSchema` validates a strict shared versioned wrapper. Its `data`
+field must be JSON, but its structure remains service-owned and opaque to this
+package.
+
+```ts
+import { Hono } from 'hono'
+import {
+  createExportAuthMiddleware,
+  exportEnvelopeSchema,
+} from '@zudar107/schloss-server-kit'
+import type { ExportAuthEnv } from '@zudar107/schloss-server-kit'
+
+const app = new Hono<ExportAuthEnv>()
+const requireExportAuth = createExportAuthMiddleware({
+  jwksUrl: process.env.SCHLUSSEL_JWKS_URL ?? 'http://schlussel:4000/.well-known/jwks.json',
+  issuer: process.env.JWT_ISSUER ?? 'schlussel',
+  service: 'zettel',
+})
+
+app.get('/exports/me', requireExportAuth, async (c) => {
+  const principal = c.get('exportPrincipal')
+  const data = await exportDataForUser(principal.sub)
+
+  return c.json(exportEnvelopeSchema.parse({
+    version: '1',
+    service: 'zettel',
+    exportedAt: new Date().toISOString(),
+    data,
+  }))
+})
+```
+
+`createExportAuthMiddleware` accepts either a normal access token with
+`token_use: 'access'` and all claims required by `createAuthMiddleware`, or an
+export delegation. It stores only a safe `ExportPrincipal`: access tokens produce
+`{ sub, kind: 'access' }`; delegations produce
+`{ sub, kind: 'delegation', jobId }`. `createExportAuthVerifier` exposes the same
+mixed validation without Hono.
+
+Delegations must be JWKS-verified RS256 tokens with the configured exact issuer,
+the single exact audience `hof-service:<service>`, `token_use: 'export'`, a
+space-delimited scope containing the exact `data:export` entry, nonempty `sub`,
+`job_id`, and `jti` claims, and a non-expired numeric `exp`. The delegation-only
+`createExportDelegationVerifier` and `createExportDelegationMiddleware` remain
+available; the latter uses the explicit `ExportDelegationEnv` Hono type. Export
+delegations never pass ordinary `createAuthMiddleware`. These contracts do not
+provide export storage or job orchestration.
+
+#### Rollout
+
+Requiring `token_use: 'access'` needs a coordinated issuer rollout. Deploy the
+Schlussel change that adds the claim first, wait at least the existing 15-minute
+access-token lifetime for previously issued tokens without the claim to expire,
+and only then deploy services using this version. There is no indefinite
+missing-claim compatibility path.
+
+The platform's current fixed signing `kid` makes coordinated JWKS key rotation
+existing deployment debt. This feature continues to use the shared remote JWKS
+as-is and does not introduce a separate rotation mechanism.
 
 ### Notification transport
 

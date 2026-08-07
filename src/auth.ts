@@ -53,9 +53,10 @@ function isValidTimezone(timezone: unknown): timezone is string | null | undefin
   }
 }
 
-function userFromPayload(payload: JWTPayload): AuthUser {
-  const { sub, email, name, role, weekStart, dateFormat, timezone } = payload
+export function userFromAccessPayload(payload: JWTPayload): AuthUser {
+  const { sub, email, name, role, weekStart, dateFormat, timezone, token_use } = payload
   const hasRequiredClaims =
+    token_use === 'access' &&
     typeof sub === 'string' &&
     sub.length > 0 &&
     typeof email === 'string' &&
@@ -95,8 +96,12 @@ export function createAuthMiddleware(config: CreateAuthMiddlewareConfig): AuthMi
 
     let user: AuthUser
     try {
-      const { payload } = await jwtVerify(authHeader.slice(7), jwks, { issuer })
-      user = userFromPayload(payload)
+      const { payload } = await jwtVerify(authHeader.slice(7), jwks, {
+        algorithms: ['RS256'],
+        issuer,
+        requiredClaims: ['exp'],
+      })
+      user = userFromAccessPayload(payload)
     } catch {
       return c.json({ error: 'Invalid or expired token' }, 401)
     }

@@ -6,6 +6,9 @@ fit best; add a new section if none fits.
 
 ## Auth
 
+- Pin ordinary access-token verification to RS256 and require the exact
+  `token_use: access` discriminator so export delegations cannot be used as
+  normal API tokens.
 - Validate required identity and optional regional JWT claims at runtime before
   provisioning users. Invalid claims now receive the existing invalid-token
   response, while provisioning failures propagate to the application error
@@ -27,3 +30,12 @@ fit best; add a new section if none fits.
 - Add a versioned, domain-agnostic notification envelope, UUID transport ID
   schemas, canonical HMAC-SHA-256 request signing and verification, response
   classification, `Retry-After` parsing, and full-jitter exponential backoff.
+
+## Data export
+
+- Add a strict version 1 JSON export envelope plus RS256/JWKS export delegation
+  verification with exact issuer, service audience, token-use, scope, identity,
+  job, JWT ID, and expiration validation.
+- Add mixed export-auth verification and Hono middleware that accepts full
+  access tokens or exact service delegations and exposes only a minimal typed
+  export principal.
