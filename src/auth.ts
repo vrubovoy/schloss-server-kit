@@ -41,6 +41,18 @@ export interface AuthMiddlewares {
   requireAdmin: MiddlewareHandler
 }
 
+function isValidTimezone(timezone: unknown): timezone is string | null | undefined {
+  if (timezone === undefined || timezone === null) return true
+  if (typeof timezone !== 'string') return false
+
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone })
+    return true
+  } catch {
+    return false
+  }
+}
+
 function userFromPayload(payload: JWTPayload): AuthUser {
   const { sub, email, name, role, weekStart, dateFormat, timezone } = payload
   const hasRequiredClaims =
@@ -54,7 +66,7 @@ function userFromPayload(payload: JWTPayload): AuthUser {
   const hasValidPreferences =
     (weekStart === undefined || weekStart === null || weekStart === 'monday' || weekStart === 'sunday') &&
     (dateFormat === undefined || dateFormat === null || dateFormat === 'dmy' || dateFormat === 'mdy' || dateFormat === 'ymd') &&
-    (timezone === undefined || timezone === null || typeof timezone === 'string')
+    isValidTimezone(timezone)
 
   if (!hasRequiredClaims || !hasValidPreferences) {
     throw new Error('Invalid token claims')

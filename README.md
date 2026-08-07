@@ -61,7 +61,9 @@ the token's application claims before calling `onUserSeen`. `sub`, `email`, and
 `name` must be nonempty strings; `role` must be `user` or `admin`. The optional
 regional claims are exposed on `AuthUser` as `weekStart` (`monday`, `sunday`, or
 `null`), `dateFormat` (`dmy`, `mdy`, `ymd`, or `null`), and `timezone` (a string
-or `null`). Missing regional claims are normalized to `null`.
+containing a valid IANA timezone identifier, or `null`). Missing regional claims
+are normalized to `null`; malformed timezone identifiers reject the token before
+`onUserSeen` runs.
 
 The CORS middleware allows `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`
 requests from configured origins.
