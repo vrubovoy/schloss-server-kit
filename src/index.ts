@@ -41,3 +41,15 @@ export type {
   SignNotificationRequestOptions,
   VerifyNotificationRequestOptions,
 } from './notification.js'
+
+export { createNotificationOutboxRuntime } from './notification-runtime.js'
+export type {
+  ClaimOutboxRowArgs,
+  CreateNotificationOutboxRuntimeOptions,
+  DeliverOneResult,
+  MarkDeliveredArgs,
+  MarkPermanentArgs,
+  MarkRetryArgs,
+  NotificationOutboxRow,
+  NotificationOutboxRuntime,
+} from './notification-runtime.js'
