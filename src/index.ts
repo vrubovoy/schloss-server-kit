@@ -5,6 +5,25 @@ export { createCorsMiddleware } from './cors.js'
 export type { CreateCorsMiddlewareConfig } from './cors.js'
 
 export {
+  createExportAuthMiddleware,
+  createExportAuthVerifier,
+  createExportDelegationMiddleware,
+  createExportDelegationVerifier,
+  exportEnvelopeSchema,
+} from './export.js'
+export type {
+  CreateExportAuthVerifierConfig,
+  CreateExportDelegationVerifierConfig,
+  ExportAuthEnv,
+  ExportAuthVerifier,
+  ExportDelegation,
+  ExportDelegationEnv,
+  ExportDelegationVerifier,
+  ExportEnvelope,
+  ExportPrincipal,
+} from './export.js'
+
+export {
   calculateBackoffDelay,
   classifyNotificationResponse,
   correlationIdSchema,

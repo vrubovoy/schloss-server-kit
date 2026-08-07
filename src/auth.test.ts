@@ -9,10 +9,10 @@ import type { AuthUser } from './auth.js'
 
 const ISSUER = 'schlussel'
 
-async function startJwksServer(jwk: JWK): Promise<{ url: string; server: Server }> {
+async function startJwksServer(jwks: JWK[]): Promise<{ url: string; server: Server }> {
   const server = createServer((_req, res) => {
     res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify({ keys: [jwk] }))
+    res.end(JSON.stringify({ keys: jwks }))
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
@@ -27,12 +27,14 @@ describe('createAuthMiddleware', () => {
   let jwksUrl: string
   let privateKey: CryptoKey
   let otherPrivateKey: CryptoKey
+  let ecPrivateKey: CryptoKey
 
   const baseUser = {
     sub: 'user-123',
     email: 'alice@example.com',
     name: 'Alice Example',
     role: 'user' as const,
+    token_use: 'access' as const,
   }
 
   async function signToken(
@@ -46,33 +48,49 @@ describe('createAuthMiddleware', () => {
       weekStart: unknown
       dateFormat: unknown
       timezone: unknown
+      token_use: unknown
+      algorithm: 'RS256' | 'ES256'
       exp: string
-      omitClaims: (keyof typeof baseUser)[]
+      omitExpiration: boolean
+      omitClaims: readonly (keyof typeof baseUser)[]
     }> = {},
   ): Promise<string> {
-    const { iss = ISSUER, exp = '1h', omitClaims = [], ...claimOverrides } = overrides
+    const {
+      iss = ISSUER,
+      algorithm = 'RS256',
+      exp = '1h',
+      omitExpiration = false,
+      omitClaims = [],
+      ...claimOverrides
+    } = overrides
     const payload: Record<string, unknown> = { ...baseUser, ...claimOverrides }
     for (const key of omitClaims) delete payload[key]
 
-    return new SignJWT(payload)
-      .setProtectedHeader({ alg: 'ES256' })
+    let token = new SignJWT(payload)
+      .setProtectedHeader({ alg: algorithm })
       .setIssuedAt()
       .setIssuer(iss)
-      .setExpirationTime(exp)
-      .sign(key)
+    if (!omitExpiration) token = token.setExpirationTime(exp)
+    return token.sign(key)
   }
 
   beforeAll(async () => {
-    const { publicKey, privateKey: pk } = await generateKeyPair('ES256', { extractable: true })
+    const { publicKey, privateKey: pk } = await generateKeyPair('RS256', { extractable: true })
     privateKey = pk
     const jwk = await exportJWK(publicKey)
-    jwk.alg = 'ES256'
+    jwk.alg = 'RS256'
     jwk.use = 'sig'
 
-    const other = await generateKeyPair('ES256', { extractable: true })
+    const other = await generateKeyPair('RS256', { extractable: true })
     otherPrivateKey = other.privateKey
 
-    const started = await startJwksServer(jwk)
+    const ec = await generateKeyPair('ES256', { extractable: true })
+    ecPrivateKey = ec.privateKey
+    const ecJwk = await exportJWK(ec.publicKey)
+    ecJwk.alg = 'ES256'
+    ecJwk.use = 'sig'
+
+    const started = await startJwksServer([jwk, ecJwk])
     jwksServer = started.server
     jwksUrl = started.url
   })
@@ -136,6 +154,20 @@ describe('createAuthMiddleware', () => {
       expect(onUserSeen).not.toHaveBeenCalled()
     })
 
+    it('responds 401 Invalid or expired token for a trusted key using ES256', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(ecPrivateKey, { algorithm: 'ES256' })
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
     it('responds 401 Invalid or expired token when the issuer claim does not match', async () => {
       const onUserSeen = vi.fn(async () => {})
       const app = buildApp(onUserSeen)
@@ -155,6 +187,20 @@ describe('createAuthMiddleware', () => {
       const app = buildApp(onUserSeen)
 
       const token = await signToken(privateKey, { exp: '-1h' })
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
+
+    it('responds 401 Invalid or expired token without an expiration claim', async () => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, { omitExpiration: true })
+
       const res = await app.request('/me', {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -193,6 +239,23 @@ describe('createAuthMiddleware', () => {
         expect(onUserSeen).not.toHaveBeenCalled()
       },
     )
+
+    it.each([
+      ['a missing token-use discriminator', { omitClaims: ['token_use'] }],
+      ['a non-access token-use discriminator', { token_use: 'export' }],
+    ] as const)('rejects %s', async (_description, overrides) => {
+      const onUserSeen = vi.fn(async () => {})
+      const app = buildApp(onUserSeen)
+      const token = await signToken(privateKey, overrides)
+
+      const res = await app.request('/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      expect(res.status).toBe(401)
+      expect(await res.json()).toEqual({ error: 'Invalid or expired token' })
+      expect(onUserSeen).not.toHaveBeenCalled()
+    })
 
     it.each([
       ['sub', ''],
