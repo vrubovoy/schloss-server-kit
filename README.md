@@ -68,6 +68,51 @@ are normalized to `null`; malformed timezone identifiers reject the token before
 The CORS middleware allows `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`
 requests from configured origins.
 
+### Notification transport
+
+The notification helpers validate a domain-agnostic v1 event envelope and sign
+the exact request body bytes. Consumers provide their own payload schema after
+validating the shared envelope.
+
+```ts
+import {
+  notificationEventEnvelopeSchema,
+  signNotificationRequest,
+  verifyNotificationRequest,
+} from '@zudar107/schloss-server-kit'
+
+const event = notificationEventEnvelopeSchema.parse(await request.json())
+
+const signature = signNotificationRequest({
+  secret: process.env.NOTIFICATION_SECRET!,
+  keyId: 'schlussel-2026-01',
+  source: 'schlussel',
+  timestamp: Math.floor(Date.now() / 1_000),
+  method: 'POST',
+  path: '/internal/v1/events',
+  rawBody,
+})
+
+const requestUrl = new URL(request.url)
+const authentic = verifyNotificationRequest({
+  secret: process.env.NOTIFICATION_SECRET!,
+  keyId: request.headers.get('X-Hof-Key-Id') ?? '',
+  source: request.headers.get('X-Hof-Service') ?? '',
+  timestamp: Number(request.headers.get('X-Hof-Timestamp')),
+  method: request.method,
+  path: `${requestUrl.pathname}${requestUrl.search}`,
+  rawBody,
+  signature: request.headers.get('X-Hof-Signature') ?? '',
+  expectedKeyId: 'schlussel-2026-01',
+  expectedSource: 'schlussel',
+  maxSkewSeconds: 300,
+})
+```
+
+`classifyNotificationResponse`, `parseRetryAfter`, and
+`calculateBackoffDelay` provide retry policy primitives. Time and randomness
+can be injected for deterministic callers and tests.
+
 ## Development
 
 ```sh

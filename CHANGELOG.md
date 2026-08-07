@@ -21,3 +21,9 @@ fit best; add a new section if none fits.
 ## CORS
 
 - Allow `PATCH` requests and preflights from configured origins.
+
+## Notifications
+
+- Add a versioned, domain-agnostic notification envelope, UUID transport ID
+  schemas, canonical HMAC-SHA-256 request signing and verification, response
+  classification, `Retry-After` parsing, and full-jitter exponential backoff.
