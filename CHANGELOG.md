@@ -6,9 +6,10 @@ fit best; add a new section if none fits.
 
 ## Auth
 
-- Pin ordinary access-token verification to RS256 and require the exact
-  `token_use: access` discriminator so export delegations cannot be used as
-  normal API tokens.
+- Pin ordinary access-token verification to RS256. Explicit
+  `token_use: access` is preferred, while signed, unexpired legacy access
+  tokens without the discriminator remain valid during rollout; export and
+  refresh token shapes cannot be used as normal API tokens.
 - Validate required identity and optional regional JWT claims at runtime before
   provisioning users. Invalid claims now receive the existing invalid-token
   response, while provisioning failures propagate to the application error

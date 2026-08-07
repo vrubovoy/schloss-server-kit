@@ -56,7 +56,7 @@ function isValidTimezone(timezone: unknown): timezone is string | null | undefin
 export function userFromAccessPayload(payload: JWTPayload): AuthUser {
   const { sub, email, name, role, weekStart, dateFormat, timezone, token_use } = payload
   const hasRequiredClaims =
-    token_use === 'access' &&
+    (token_use === undefined || token_use === 'access') &&
     typeof sub === 'string' &&
     sub.length > 0 &&
     typeof email === 'string' &&
