@@ -177,6 +177,20 @@ const authentic = verifyNotificationRequest({
 `calculateBackoffDelay` provide retry policy primitives. Time and randomness
 can be injected for deterministic callers and tests.
 
+`createNotificationOutboxRuntime` provides the storage-agnostic producer loop:
+callers atomically lease one row and supply lease-token-fenced settlement
+callbacks. The runtime validates its configuration before claiming, signs and
+posts the envelope, bounds HTTP, timeout, and transport retries with full-jitter
+backoff, honors `Retry-After`, and reports a rejected fenced update as `stale`.
+Timer settings are capped at Node's maximum supported delay, and lease/retry
+dates are checked for overflow. Response-body cancellation never delays
+settlement or the next poll.
+Stopping aborts an active request without recording a delivery outcome, and a
+restart waits for any uncooperative prior request to settle before polling
+again. Producer secrets must be at least 32 bytes; the endpoint must use HTTPS,
+except that HTTP is allowed for internal hosts such as service names,
+`localhost`, private IP addresses, and `.internal`/`.local` names.
+
 ## Development
 
 ```sh

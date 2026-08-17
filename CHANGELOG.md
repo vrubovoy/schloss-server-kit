@@ -28,6 +28,11 @@ fit best; add a new section if none fits.
 
 ## Notifications
 
+- Harden the notification outbox runtime with upfront endpoint, credential, and
+  numeric configuration validation; bounded sanitized retries for timeouts and
+  transport failures; non-blocking response-body cancellation; timer/date
+  overflow guards; typed stale fenced settlements; and stop/restart polling
+  whose generations cannot overlap or adopt one another's abort controller.
 - Add a versioned, domain-agnostic notification envelope, UUID transport ID
   schemas, canonical HMAC-SHA-256 request signing and verification, response
   classification, `Retry-After` parsing, and full-jitter exponential backoff.
