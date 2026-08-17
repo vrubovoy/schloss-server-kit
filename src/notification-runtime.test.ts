@@ -220,6 +220,8 @@ describe('notification outbox delivery', () => {
 
   it.each([
     ['base URL', { baseUrl: 'not a URL' }],
+    ['base URL', { baseUrl: 'file:///tmp/glocke' }],
+    ['base URL', { baseUrl: 'https://user:password@glocke.example' }],
     ['source', { source: '   ' }],
     ['source', { source: 'Invalid_Service' }],
     ['key ID', { keyId: '' }],
@@ -270,6 +272,10 @@ describe('notification outbox delivery', () => {
       expect(() => setup({ [name]: MAX_DATE_MS + 1 })).toThrow(/date/i)
     },
   )
+
+  it('rejects a base retry delay above the maximum delay', () => {
+    expect(() => setup({ baseDelayMs: 2_000, maxDelayMs: 1_000 })).toThrow(/retry delay/i)
+  })
 
   it('rejects date-overflowing lease and retry combinations before claiming', async () => {
     const claim = vi.fn(async () => row)

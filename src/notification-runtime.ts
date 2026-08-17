@@ -172,6 +172,9 @@ export function createNotificationOutboxRuntime(
   if (leaseDurationMs > MAX_DATE_MS || maxDelayMs > MAX_DATE_MS) {
     throw new Error('notification lease and retry delays must fit in a JavaScript Date')
   }
+  if (baseDelayMs > maxDelayMs) {
+    throw new Error('notification base retry delay must not exceed the maximum delay')
+  }
   if (requestTimeoutMs >= leaseDurationMs) {
     throw new Error('request timeout must be shorter than the lease duration, or a timed-out request could outlive its own lease')
   }
