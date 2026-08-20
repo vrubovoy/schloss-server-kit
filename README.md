@@ -11,6 +11,8 @@ self-hosted personal services:
 - [`kuvert`](https://github.com/zudaR107/kuvert) — envelope budgeting
 - [`tafel`](https://github.com/zudaR107/tafel) — task/project tracking
 - [`zettel`](https://github.com/zudaR107/zettel) — markdown note-taking
+- [`glocke`](https://github.com/zudaR107/glocke) — in-app notification center and delivery foundation
+- [`schrank`](https://github.com/zudaR107/schrank) — file storage with nested folders
 - [`tor`](https://github.com/zudaR107/tor) — reverse-proxy gateway
 - [`schloss-ui`](https://github.com/zudaR107/schloss-ui) — shared frontend components
 - **`schloss-server-kit`** (this repo) — shared backend auth/CORS kit
