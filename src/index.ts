@@ -42,6 +42,9 @@ export type {
   VerifyNotificationRequestOptions,
 } from './notification.js'
 
+export { checkJwksReachable } from './readiness.js'
+export type { CheckJwksReachableOptions } from './readiness.js'
+
 export { createNotificationOutboxRuntime } from './notification-runtime.js'
 export type {
   ClaimOutboxRowArgs,
