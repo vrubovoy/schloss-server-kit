@@ -1,9 +1,9 @@
 import { createServer } from 'node:http'
-import type { Server } from 'node:http'
+import type { RequestListener, Server } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { checkJwksReachable } from './readiness.js'
 
-async function startServer(handler: Parameters<typeof createServer>[0]): Promise<{ url: string; server: Server }> {
+async function startServer(handler: RequestListener): Promise<{ url: string; server: Server }> {
   const server = createServer(handler)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
